@@ -35,17 +35,14 @@ bool dht22Init(Dht22Port *port) {
     dht22SetOutput(port);
     _delay_ms(1);
 
-    cli();
     dht22ClearBit(port);
-    _delay_ms(18);
+    _delay_ms(1);
     dht22SetInput(port);
-
-    _delay_us(40 + 40);
+    _delay_us(30 + 40);
     uint8_t bit0 = dht22ReadBit(port);
-    _delay_us(40 + 40);
+    _delay_us(30 + 40);
     uint8_t bit1 = dht22ReadBit(port);
     _delay_us(40);
-    sei();
 
     if (!bit0 && bit1) {
         return true;
@@ -69,7 +66,6 @@ bool dht22CheckCrc(uint64_t data, Dht22Port *port) {
 uint64_t dht22ReadDataBits(Dht22Port *port) {
     uint64_t data = 0;
 
-    cli();
     for (int bit = 39; bit >= 0; bit--) {
         while (!dht22ReadBit(port)) {
             _delay_us(1);
@@ -84,7 +80,6 @@ uint64_t dht22ReadDataBits(Dht22Port *port) {
             cbi64Bit(data, bit);
         }
     }
-    sei();
 
     return data;
 }
@@ -92,10 +87,12 @@ uint64_t dht22ReadDataBits(Dht22Port *port) {
 Dht22Data *dht22ReadData(Dht22Port *port) {
     Dht22Data *data = malloc(sizeof(Dht22Data));
 
+    cli();
     bool sensorFound = dht22Init(port);
 
     if (sensorFound) {
         uint64_t bits = dht22ReadDataBits(port);
+        sei();
 
         if (dht22CheckCrc(bits, port)) {
             int relativeHumidity = (bits >> 24) / 10;
@@ -118,6 +115,7 @@ Dht22Data *dht22ReadData(Dht22Port *port) {
             data->temperature = DHT22_CRC_ERROR;
         }
     } else {
+        sei();
         data->relativeHumidity = DHT22_NOT_FOUND_ERROR;
         data->temperature = DHT22_NOT_FOUND_ERROR;
     }
