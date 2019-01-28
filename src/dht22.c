@@ -1,8 +1,8 @@
+#include "dht22.h"
 #include <util/delay.h>
 #include <avr/interrupt.h>
-#include <stdlib.h>
 #include <stdbool.h>
-#include "dht22.h"
+#include <stdlib.h>
 
 #define sbi(port,bit) (port) |= (1 << (bit))
 #define cbi(port,bit) (port) &= ~(1 << (bit))
@@ -84,9 +84,7 @@ uint64_t dht22ReadDataBits(Dht22Port *port) {
     return data;
 }
 
-Dht22Data *dht22ReadData(Dht22Port *port) {
-    Dht22Data *data = malloc(sizeof(Dht22Data));
-
+uint8_t dht22ReadData(Dht22Data *data, Dht22Port *port) {
     cli();
     bool sensorFound = dht22Init(port);
 
@@ -111,14 +109,13 @@ Dht22Data *dht22ReadData(Dht22Port *port) {
                 data->temperature *= -1;
             }
         } else {
-            data->relativeHumidity = DHT22_CRC_ERROR;
-            data->temperature = DHT22_CRC_ERROR;
+            return DHT22_CRC_ERROR;
         }
     } else {
         sei();
-        data->relativeHumidity = DHT22_NOT_FOUND_ERROR;
-        data->temperature = DHT22_NOT_FOUND_ERROR;
+
+        return DHT22_NOT_FOUND_ERROR;
     }
 
-    return data;
+    return DHT22_OK;
 }
