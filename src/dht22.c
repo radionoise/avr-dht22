@@ -109,12 +109,12 @@ uint8_t dht22ReadData(Dht22Data *data, Dht22Port *port) {
                 data->temperature *= -1;
             }
         } else {
-            return DHT22_CRC_ERROR;
+            return DHT22_ERROR_CRC;
         }
     } else {
         sei();
 
-        return DHT22_NOT_FOUND_ERROR;
+        return DHT22_ERROR_NOT_FOUND;
     }
 
     return DHT22_OK;

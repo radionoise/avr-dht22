@@ -9,8 +9,8 @@
 #define AVR_DHT22_DHT22_H
 
 #define DHT22_OK 0
-#define DHT22_NOT_FOUND_ERROR 1
-#define DHT22_CRC_ERROR 2
+#define DHT22_ERROR_NOT_FOUND 1
+#define DHT22_ERROR_CRC 2
 
 typedef struct Dht22Port {
     volatile uint8_t * avrDdrPort;
