@@ -1,6 +1,7 @@
 #include "dht22.h"
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <util/atomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -31,18 +32,23 @@ uint8_t dht22ReadBit(Dht22Port *port) {
 }
 
 bool dht22Init(Dht22Port *port) {
-    dht22SetBit(port);
-    dht22SetOutput(port);
-    _delay_ms(1);
+    uint8_t bit0;
+    uint8_t bit1;
 
-    dht22ClearBit(port);
-    _delay_ms(1);
-    dht22SetInput(port);
-    _delay_us(30 + 40);
-    uint8_t bit0 = dht22ReadBit(port);
-    _delay_us(30 + 40);
-    uint8_t bit1 = dht22ReadBit(port);
-    _delay_us(40);
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        dht22SetBit(port);
+        dht22SetOutput(port);
+        _delay_ms(1);
+
+        dht22ClearBit(port);
+        _delay_ms(1);
+        dht22SetInput(port);
+        _delay_us(30 + 40);
+        bit0 = dht22ReadBit(port);
+        _delay_us(30 + 40);
+        bit1 = dht22ReadBit(port);
+        _delay_us(40);
+    }
 
     if (!bit0 && bit1) {
         return true;
@@ -66,18 +72,20 @@ bool dht22CheckCrc(uint64_t data, Dht22Port *port) {
 uint64_t dht22ReadDataBits(Dht22Port *port) {
     uint64_t data = 0;
 
-    for (int bit = 39; bit >= 0; bit--) {
-        while (!dht22ReadBit(port)) {
-            _delay_us(1);
-        }
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        for (int bit = 39; bit >= 0; bit--) {
+            while (!dht22ReadBit(port)) {
+                _delay_us(1);
+            }
 
-        _delay_us(28);
-        uint8_t result = dht22ReadBit(port);
-        if (result) {
-            sbi64Bit(data, bit);
-            _delay_us(42);
-        } else {
-            cbi64Bit(data, bit);
+            _delay_us(28);
+            uint8_t result = dht22ReadBit(port);
+            if (result) {
+                sbi64Bit(data, bit);
+                _delay_us(42);
+            } else {
+                cbi64Bit(data, bit);
+            }
         }
     }
 
@@ -85,12 +93,10 @@ uint64_t dht22ReadDataBits(Dht22Port *port) {
 }
 
 uint8_t dht22ReadData(Dht22Data *data, Dht22Port *port) {
-    cli();
     bool sensorFound = dht22Init(port);
 
     if (sensorFound) {
         uint64_t bits = dht22ReadDataBits(port);
-        sei();
 
         if (dht22CheckCrc(bits, port)) {
             int relativeHumidity = (bits >> 24) / 10;
@@ -112,8 +118,6 @@ uint8_t dht22ReadData(Dht22Data *data, Dht22Port *port) {
             return DHT22_ERROR_CRC;
         }
     } else {
-        sei();
-
         return DHT22_ERROR_NOT_FOUND;
     }
 
